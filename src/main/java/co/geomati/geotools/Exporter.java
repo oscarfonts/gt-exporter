@@ -37,7 +37,7 @@ import org.opengis.referencing.crs.CoordinateReferenceSystem;
  * 
  * @author Oscar Fonts <oscar.fonts@geomati.co>
  */
-public class FormatConverter implements Closeable {
+public class Exporter implements Closeable {
 
 	DataStore src, dst;
 	CoordinateReferenceSystem forcedCRS;
@@ -86,7 +86,7 @@ public class FormatConverter implements Closeable {
 		String crsName = (String) options.valueOf("crs");
 
 		// Instantiate FormatConverter
-		FormatConverter converter = new FormatConverter(getConfig(srcFile),
+		Exporter converter = new Exporter(getConfig(srcFile),
 				getConfig(dstFile));
 
 		// Optionally pass the CRS on
@@ -115,7 +115,7 @@ public class FormatConverter implements Closeable {
 	 *             A DataStore or CRS definitions don't correspond to an
 	 *             available GeoTools resource.
 	 */
-	public FormatConverter(Map<String, Object> srcConfig,
+	public Exporter(Map<String, Object> srcConfig,
 			Map<String, Object> dstConfig) throws IOException, FactoryException {
 		src = DataStoreFinder.getDataStore(srcConfig);
 		if (src == null) {

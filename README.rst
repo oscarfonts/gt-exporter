@@ -1,13 +1,13 @@
-=========================
-Geotools Format Converter
-=========================
+===============================
+Geotools Geodata Exporting Tool
+===============================
 
 Transfers all geodata from a source database to a target database. Supported formats are:
 
 * PostGIS
 * Spatialite
 * H2
-* Oracle Spatial (not tested, needs ojdbc7.jar from Oracle).
+* Oracle Spatial (not tested, needs ojdbc7.jar from Oracle)
 * A shapefile or directory of shapefiles
 
 
@@ -18,8 +18,8 @@ Requires git, maven and Java 7.
 
 ::
 
-	git clone git@github.com:oscarfonts/gt-format-converter.git
-	cd gt-format-converter
+	git clone git@github.com:oscarfonts/gt-exporter.git
+	cd gt-exporter
 	mvn package dependency:copy-dependencies
 
 
@@ -28,18 +28,18 @@ Run from command line
 
 ::
 
-	java -jar gt-format-converter-1.0.jar [--crs <crs_code>] <source> <target>
+	java -jar gt-exporter-1.0.jar [--crs <crs_code>] <source> <target>
 
 Where:
 
 * <source> is a shapefile, a directory of shapefiles, or a properties file defining a database connection to read the data from.
 * <target> is a shapefile, a directory of shapefiles, or a properties file defining a database connection copy the data to.
-* <crs_code> is an optional CRS that will be assigned to target datasets, ignoring any detected source CRS. Please note no reprojection is performed.
+* <crs_code> is an optional CRS that will be assigned to target datasets, ignoring any detected source CRS. Please note that no reprojection is performed.
 	
 Examples::
 
-	java -jar gt-format-converter-1.0.jar --crs EPSG:23031 /a/directory/of/shapefiles/ spatialite.properties
-	java -jar gt-format-converter-1.0.jar oracle.properties postgis.properties
+	java -jar gt-exporter-1.0.jar --crs EPSG:23031 /a/directory/of/shapefiles/ spatialite.properties
+	java -jar gt-exporter-1.0.jar oracle.properties postgis.properties
 
 .. warning:: The's no way to indicate which tables to be copied; the converter will copy over **all** the available geodata tables in a particular connection (or directory of shapefiles).
 

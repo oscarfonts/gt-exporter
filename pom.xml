@@ -3,12 +3,12 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<groupId>co.geomati</groupId>
-	<artifactId>gt-format-converter</artifactId>
+	<artifactId>gt-exporter</artifactId>
 	<version>1.0</version>
 	<packaging>jar</packaging>
 
-	<name>Geotools Format Converter</name>
-	<url>http://github.com/oscarfonts/gt-format-converter</url>
+	<name>Geotools Geodata Exporting Tool</name>
+	<url>http://github.com/oscarfonts/gt-exporter</url>
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -86,7 +86,7 @@
 						<manifest>
 							<addClasspath>true</addClasspath>
 							<classpathPrefix>dependency/</classpathPrefix>
-							<mainClass>co.geomati.geotools.FormatConverter</mainClass>
+							<mainClass>co.geomati.geotools.Exporter</mainClass>
 						</manifest>
 					</archive>
 				</configuration>

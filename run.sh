@@ -1,1 +1,1 @@
-java -jar target/gt-format-converter-1.0.jar "$@"
+java -jar target/gt-exporter-1.0.jar "$@"
