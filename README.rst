@@ -2,13 +2,13 @@
 Geotools Format Converter
 =========================
 
-Reads a source database and dumps all the geodata to a target database. Supported formats are:
+Transfers all geodata from a source database to a target database. Supported formats are:
 
 * PostGIS
 * Spatialite
 * H2
 * Oracle Spatial (not tested, needs ojdbc7.jar from Oracle).
-* Shapefile or directory-of-shapefiles
+* A shapefile or directory of shapefiles
 
 
 Get the code and compile
@@ -27,6 +27,7 @@ Run from command line
 =====================
 
 ::
+
 	java -jar gt-format-converter-1.0.jar [--crs <crs_code>] <source> <target>
 
 Where:
@@ -89,7 +90,7 @@ Example ``spatialite.properties``::
 	dbtype=spatialite
 	database=DATABASE.sqlite
 
- .. note:: Depends on PROJ and GEOS libraries. In Linux systems, if you previously
+.. note:: Depends on PROJ and GEOS libraries. In Linux systems, if you previously
     installed PostGIS, GDAL or SpatiaLite packages, they are probably there. But please
     refer to the GeoTools link above if you need precompiled binaries for your system.
 
