@@ -1,81 +1,109 @@
-Shapefile Connection Parameters
--------------------------------
+=========================
+Geotools Format Converter
+=========================
 
-http://docs.geotools.org/stable/userguide/library/data/shape.html
+Reads a source database and dumps all the geodata to a target database. Supported formats are:
 
-============== =========================================================
-Parameter      Description
-============== =========================================================
-"url"          A URL of the file ending in "shp"
-"charset"      Charset used to decode strings in the DBF file (optional)
-"timezone"     Timezone used to parse dates in the DBF file (optional)
-============== =========================================================
+* PostGIS
+* Spatialite
+* H2
+* Oracle Spatial (not tested, needs ojdbc7.jar from Oracle).
+* Shapefile or directory-of-shapefiles
 
-Example::
 
-    url=example.shp
+Get the code and compile
+========================
+
+Requires git, maven and Java 7.
+
+::
+
+	git clone git@github.com:oscarfonts/gt-format-converter.git
+	cd gt-format-converter
+	mvn package dependency:copy-dependencies
+
+
+Run from command line
+=====================
+
+::
+	java -jar gt-format-converter-1.0.jar [--crs <crs_code>] <source> <target>
+
+Where:
+
+* <source> is a shapefile, a directory of shapefiles, or a properties file defining a database connection to read the data from.
+* <target> is a shapefile, a directory of shapefiles, or a properties file defining a database connection copy the data to.
+* <crs_code> is an optional CRS that will be assigned to target datasets, ignoring any detected source CRS. Please note no reprojection is performed.
 	
+Examples::
 
-PostGIS Connection Parameters
------------------------------
+	java -jar gt-format-converter-1.0.jar --crs EPSG:23031 /a/directory/of/shapefiles/ spatialite.properties
+	java -jar gt-format-converter-1.0.jar oracle.properties postgis.properties
 
-http://docs.geotools.org/stable/userguide/library/jdbc/postgis.html
+.. warning:: The's no way to indicate which tables to be copied; the converter will copy over **all** the available geodata tables in a particular connection (or directory of shapefiles).
 
-============== =============================================
+
+Properties file connection parameters
+=====================================
+
+PostGIS
+-------
+
+============== ======================================================
 Parameter      Description
-============== =============================================
+============== ======================================================
 "dbtype"       Must be the string "postgis"
 "host"         Machine name or IP address to connect to
-"port"         Port number to connect to (default 5432)
+"port"         Port number to connect to
 "database"     The database to connect to
-"schema"       The database schema to access (TODO default?)
+"schema"       The database schema to access (optional if DB default)
 "user"         User name
 "passwd"       Password
-============== =============================================
+============== ======================================================
 
-Example::
+Example ``postgis.properties``::
 
-    dbtype=postgis
-    host=localhost
-    port=5432
-    database=database
-    schema=public
-    user=postgres
-    passwd=postgres
+	dbtype=postgis
+	host=localhost
+	port=5432
+	database=tmb
+	user=tmb
+	passwd=tmb
 
 
-SpatiaLite Connection Parameters
---------------------------------
+See also: http://docs.geotools.org/stable/userguide/library/jdbc/postgis.html
 
-http://docs.geotools.org/stable/userguide/library/jdbc/spatialite.html
 
-.. note:: This plugin uses internal versions of both SQLite (3.7.2) and SpatiaLite (2.4.0).
-   Therefore the plugin is only capable of accessing databases that are compatible with these 
-   versions.
-   
- .. note:: Depends on PROJ and GEOS libraries. In Linux systems, if you previously
-    installed PostGIS, GDAL or SpatiaLite packages, they are probably there. But please
-    refer to the GeoTools link above if you need precompiled binaries for your system.
+SpatiaLite
+----------
 
 ============== ============================================
 Parameter      Description
 ============== ============================================
 "dbtype"       Must be the string "spatialite"
 "database"     The database to connect to
-"user"         User name (optional)
-"passwd"       Password (optional)
 ============== ============================================
 
-Example::
+Example ``spatialite.properties``::
 
-    dbtype=spatialite
-    database=geotools.db
+	dbtype=spatialite
+	database=DATABASE.sqlite
+
+ .. note:: Depends on PROJ and GEOS libraries. In Linux systems, if you previously
+    installed PostGIS, GDAL or SpatiaLite packages, they are probably there. But please
+    refer to the GeoTools link above if you need precompiled binaries for your system.
+
+.. note:: This plugin uses internal versions of both SQLite (3.7.2) and SpatiaLite (2.4.0).
+   Therefore the plugin is only capable of accessing databases that are compatible with these 
+   versions.
+
+See also: http://docs.geotools.org/stable/userguide/library/jdbc/spatialite.html
 
 
-H2 Connection Parameters
-------------------------
+H2
+--
 
-http://docs.geotools.org/stable/userguide/library/jdbc/h2.html
+H2 has two connection modes: the "embedded" mode (single connection), and a "server" mode (allows multiple connections).
 
 "Embedded" mode
 ...............
@@ -89,10 +117,10 @@ Parameter      Description
 "passwd"       Password (optional)
 ============== =============================================
 
-Example::
+Example ``h2.properties``::
 
-    dbtype=h2
-    database=geotools
+	dbtype=h2
+	database=H2_DATABASE
     
 "Server" mode
 .............
@@ -108,24 +136,20 @@ Parameter      Description
 "passwd"       Password (optional)
 ============== ============================================
 
-Example::
+Example ``h2-server.properties``::
 
-    dbtype=h2
-    host=localhost
-    port=9902
-    database=geotools
-    user=geotools
-    passwd=geotools
+	dbtype=h2
+	host=localhost
+	port=9902
+	database=H2_DATABASE
+	user=geotools
+	passwd=geotools
+
+See also: http://docs.geotools.org/stable/userguide/library/jdbc/h2.html
 
 
-Oracle Connection Parameters
-----------------------------
-
-http://docs.geotools.org/stable/userguide/library/jdbc/oracle.html
-
-.. note:: The propietary Oracle JDBC driver (``ojdbc7.jar``) has to be manually obtained from
-`Oracle <http://www.oracle.com/technetwork/database/features/jdbc/default-2280470.html>`_ and
-made available somewhere in the ``CLASSPATH``.
+Oracle Spatial
+--------------
 
 ============== ==================================================================
 Parameter      Description
@@ -139,12 +163,18 @@ Parameter      Description
 "passwd"       Password
 ============== ==================================================================
 
-Example::
+Example ``oracle.properties``::
 
 	dbtype=oracle
 	host=localhost
 	port=1521
-	database=database
+	database=sid
 	schema=public
 	user=geotools
 	passwd=geotools
+
+.. note:: The propietary Oracle JDBC driver (``ojdbc7.jar``) has to be manually obtained from
+	`Oracle <http://www.oracle.com/technetwork/database/features/jdbc/default-2280470.html>`_ and
+	made available somewhere in the ``CLASSPATH``.
+
+See also: http://docs.geotools.org/stable/userguide/library/jdbc/oracle.html
