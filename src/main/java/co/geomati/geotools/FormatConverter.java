@@ -1,11 +1,11 @@
 package co.geomati.geotools;
 
+import java.io.Closeable;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
@@ -16,97 +16,220 @@ import org.geotools.data.DataStore;
 import org.geotools.data.DataStoreFinder;
 import org.geotools.data.DataUtilities;
 import org.geotools.data.DefaultTransaction;
+import org.geotools.data.FeatureWriter;
 import org.geotools.data.Query;
 import org.geotools.data.Transaction;
-import org.geotools.data.simple.SimpleFeatureCollection;
+import org.geotools.data.simple.SimpleFeatureIterator;
 import org.geotools.data.simple.SimpleFeatureSource;
-import org.geotools.data.simple.SimpleFeatureStore;
 import org.geotools.feature.SchemaException;
 import org.geotools.referencing.CRS;
+import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
 import org.opengis.referencing.FactoryException;
+import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
-public class FormatConverter {
+/**
+ * Copies data from a GeoTools DataStore to another GeoTools DataStore.
+ * Supported DataStore formats are: Shapefile, directory of spatial files,
+ * PostGIS, Spatialite, H2 and Oracle Spatial.
+ * 
+ * It can be run from command line or instantiated as a class.
+ * 
+ * @author Oscar Fonts <oscar.fonts@geomati.co>
+ */
+public class FormatConverter implements Closeable {
 
-	public static void main(String[] args) throws IOException {
+	DataStore src, dst;
+	CoordinateReferenceSystem forcedCRS;
+
+	/**
+	 * The CLI entry point.
+	 * 
+	 * Accepts a source and a destination location (properties file, shapefile,
+	 * or directory of shapefiles). The -crs option lests assign an explict CRS
+	 * to the target data (no reprojection implied, only assignment).
+	 * 
+	 * @param args
+	 *            Source and target locations, and, optionaly, a CRS code in the
+	 *            form "Authority:Code". For instance, "EPSG:4326".
+	 * @throws IOException
+	 *             Something happened accessing the data
+	 * @throws FactoryException
+	 *             A DataStore or CRS definitions don't correspond to an
+	 *             available GeoTools resource.
+	 */
+	public static void main(String[] args) throws IOException, FactoryException {
+		// OptionParser helps define and parse the command interface (parameters
+		// and options)
 		OptionParser parser = new OptionParser() {
 			{
-				accepts( "help", "Print this help note" ).forHelp();
-				accepts( "crs", "Force an output CRS (no reprojection)" )
-		    		.withRequiredArg()
-		    		.describedAs("srs_def");
-				nonOptions("source and destination datasources")
-		    		.ofType(File.class)
-		    		.describedAs("src dst");
+				accepts("help", "Print this help note").forHelp();
+				accepts("crs", "Force an output CRS (no reprojection)")
+						.withRequiredArg().describedAs("srs_def");
+				nonOptions("source and destination datasources").ofType(
+						File.class).describedAs("src dst");
 			}
 		};
-	    OptionSet options = parser.parse(args);
-	    if (options.nonOptionArguments().size() != 2) {
-		    parser.printHelpOn(System.out);
-		    System.exit(0);
-	    }
-	    File srcFile = (File) options.nonOptionArguments().get(0);
-	    File dstFile = (File) options.nonOptionArguments().get(1);	    
-	    String crsName = (String) options.valueOf("crs");
-	    
-	    Map<String, Object> srcParams = new HashMap<String, Object>();
-	    if (srcFile.isDirectory()) {
-	    	System.out.println("SRC is a directory");
-	    	srcParams.put("url", DataUtilities.fileToURL(srcFile));
-	    } else if (srcFile.isFile()) {
-			//String fileName = "/home/oscar/Projects/tmb/h2/docker/gs-h2/data_dir/TMB/AREA_TMB.shp";
-	    	String extension = "";
-	    	int i = srcFile.getName().lastIndexOf('.');
-	    	if (i > 0) {
-	    	    extension = srcFile.getName().substring(i+1);
-	    	}
-	    	if (extension.equals("shp")) {
-	    		System.out.println("SRC is a shapefile");
-	    		srcParams.put("url", DataUtilities.fileToURL(srcFile));
-	    	} else {
-	    		System.out.println("SRC should be a properties file");
-	    		srcParams = getProperties(srcFile);
-	    	}
-	    } else {
-	    	System.err.println("Source location does not exist");
-	    	System.exit(1);
-	    }
-	
-		Map<String, Object> dstParams = new HashMap<String, Object>();
-		dstParams.put("dbtype", "spatialite");
-		dstParams.put("database", "OUTPUT.sqlite");
-		dstParams.put( "validating connections", false);
 
-		try {
-			DataStore src = DataStoreFinder.getDataStore(srcParams);
-			DataStore dst = DataStoreFinder.getDataStore(dstParams);
-			
-			if (src == null) {
-				System.err.println("Error creating source datastore");	
-				System.exit(2);
-			} else if (dst == null) {
-				System.err.println("Error creating destination datastore");
-				System.exit(2);
-			} else {
-				copy(src, dst);
-			}
+		// Read the CLI arguments
+		OptionSet options = parser.parse(args);
 
-		} catch (IOException e) {
-			e.printStackTrace();
+		// 2 arguments needed: A source and a destination
+		if (options.nonOptionArguments().size() != 2) {
+			parser.printHelpOn(System.out);
+			System.exit(0);
+		}
+
+		// Get the options
+		File srcFile = (File) options.nonOptionArguments().get(0);
+		File dstFile = (File) options.nonOptionArguments().get(1);
+		String crsName = (String) options.valueOf("crs");
+
+		// Instantiate FormatConverter
+		FormatConverter converter = new FormatConverter(getConfig(srcFile),
+				getConfig(dstFile));
+
+		// Optionally pass the CRS on
+		if (crsName != null) {
+			converter.forceCRS(crsName);
+		}
+
+		// Ta-daaa!
+		converter.run();
+
+		// Need to explicitly free resources
+		converter.close();
+	}
+
+	/**
+	 * Instantiate the FormatConverter. If the given configuration(s) don't
+	 * correspond to any available DataStore, a FactoryException is thrown.
+	 * 
+	 * @param srcConfig
+	 *            Source DataStore configuration parameters
+	 * @param dstConfig
+	 *            Target DataStore configuration parameters
+	 * @throws IOException
+	 *             Something happened accessing the data
+	 * @throws FactoryException
+	 *             A DataStore or CRS definitions don't correspond to an
+	 *             available GeoTools resource.
+	 */
+	public FormatConverter(Map<String, Object> srcConfig,
+			Map<String, Object> dstConfig) throws IOException, FactoryException {
+		src = DataStoreFinder.getDataStore(srcConfig);
+		if (src == null) {
+			throw new FactoryException(
+					"Error creating source datastore, please review its configuration parameters");
+		}
+
+		dst = DataStoreFinder.getDataStore(dstConfig);
+		if (dst == null) {
+			throw new FactoryException(
+					"Error creating target datastore, please review its configuration parameters");
 		}
 	}
-	
 
-	
-	private static Map<String, Object> getProperties(File file) {
+	/**
+	 * Assign the given CRS to the target data, ignoring any source CRS
+	 * definition. No reprojection is performed.
+	 * 
+	 * @param crs
+	 *            The CRS code in the form "Authority:Code". For instance,
+	 *            "EPSG:4326".
+	 * @throws FactoryException
+	 *             Code couldn't be located in the embedded EPSG database.
+	 */
+	public void forceCRS(String crs) throws FactoryException {
+		forcedCRS = CRS.decode(crs);
+	}
+
+	/**
+	 * Copy the data from SRC dataStore to DST dataStore.
+	 * 
+	 * @throws IOException
+	 */
+	public void run() throws IOException {
+		// Iterate over available types (DB tables or SHP files)
+		String[] typeNames = src.getTypeNames();
+		for (int i = 0; i < typeNames.length; i++) {
+			copyLayer(typeNames[i]);
+		}
+	}
+
+	/**
+	 * Frees resources (datastores have to be disposed when done)
+	 */
+	@Override
+	public void close() {
+		if (dst != null) {
+			dst.dispose();
+			dst = null;
+		}
+		if (src != null) {
+			src.dispose();
+			src = null;
+		}
+		forcedCRS = null;
+	}
+
+	/**
+	 * Returns DataStore configuration parameters based on a file, that could
+	 * be: a) A shapefile, or a directory of shapefiles. b) A properties file
+	 * containing a datastore configuration.
+	 * 
+	 * @param file
+	 *            The file to read.
+	 * @return A Map with the configuration parameters.
+	 */
+	protected static Map<String, Object> getConfig(File file) {
+		Map<String, Object> config = new HashMap<String, Object>();
+
+		if (isShapeFile(file) || file.isDirectory()) {
+			// A shapefile or directory of spatial files
+			config.put("url", DataUtilities.fileToURL(file));
+		} else if (file.isFile()) {
+			// Another kind of file, try to parse as a properties file");
+			config = readProperties(file);
+		} else {
+			// Not a file, not a directory...
+			System.err.println("File " + file.getName() + " does not exist");
+			System.exit(1);
+		}
+		return config;
+	}
+
+	/**
+	 * Determines if a given file name has the "shp" extension.
+	 * 
+	 * @param file
+	 *            The file to check
+	 */
+	protected static boolean isShapeFile(File file) {
+		String extension = "";
+		int dot = file.getName().lastIndexOf('.');
+		if (dot > 0) {
+			extension = file.getName().substring(dot + 1);
+		}
+		return file.isFile() && extension.toLowerCase().equals("shp");
+	}
+
+	/**
+	 * Given a properties file, returns a Map with the property collection
+	 * 
+	 * @param file
+	 *            The file to read
+	 * @return A key-value pair Map
+	 */
+	protected static Map<String, Object> readProperties(File file) {
 		Map<String, Object> map = new HashMap<String, Object>();
 		InputStream input = null;
 		try {
 			input = new FileInputStream(file);
 			Properties properties = new Properties();
 			properties.load(input);
-			for (final String name: properties.stringPropertyNames()) {
-				map.put(name, properties.getProperty(name));	
+			for (final String name : properties.stringPropertyNames()) {
+				map.put(name, properties.getProperty(name));
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -122,49 +245,96 @@ public class FormatConverter {
 		return map;
 	}
 
-	private static void copy(DataStore src, DataStore dst) throws IOException {
-		Transaction t = new DefaultTransaction("handle");
-		try {
-			System.out.println("Typenames: " + src.getTypeNames());
-			String typeName = src.getTypeNames()[0];
-			System.out.println("  Processing " + typeName);
-			SimpleFeatureSource featureSource = src.getFeatureSource(typeName);
-		    int count = featureSource.getCount( Query.ALL );
-		    if( count == -1 ){
-		        count = featureSource.getFeatures().size();
-		    }
-			System.out.println("    Feature count: " + count);
+	/**
+	 * Do the actual data copy, using low-level feature iterators, for a given
+	 * FeatureType (aka layer, file, table). Will use transactions to write the
+	 * data in chunks of 1000 features (balance between memory and IO usage).
+	 * 
+	 * @param typeName
+	 *            The type name to be copied.
+	 * @throws IOException
+	 */
+	protected void copyLayer(String typeName) throws IOException {
+		Transaction t = new DefaultTransaction(typeName);
+		// Inform about the dataset to be copied, and its feature count.
+		SimpleFeatureSource featureSource = src.getFeatureSource(typeName);
+		System.out.println("Processing " + typeName + " ("
+				+ count(featureSource) + " features).");
 
-			SimpleFeatureType srcFt = featureSource.getSchema();
-			SimpleFeatureType dstFt = srcFt;
-			if (srcFt.getCoordinateReferenceSystem() == null) { // TODO force as an option
-				try {
-					dstFt = DataUtilities.createSubType(srcFt, null, CRS.decode("EPSG:23031"));
-				} catch (SchemaException | FactoryException e) {
-					e.printStackTrace();
+		// Use source schema in destination, overriding CRS if needed.
+		SimpleFeatureType srcFeatureType = featureSource.getSchema();
+		SimpleFeatureType dstFeatureType = srcFeatureType;
+		if (forcedCRS != null) {
+			try {
+				dstFeatureType = DataUtilities.createSubType(srcFeatureType,
+						null, forcedCRS);
+				System.out.println("Assigned CRS " + forcedCRS.getName().toString());
+			} catch (SchemaException e) {
+				System.err
+						.println("Warning: Couldn't assign the forced CRS to output");
+				dstFeatureType = srcFeatureType;
+			}
+		}
+
+		// Will throw exception if the FeatureType (table, filename) already
+		// exists in target datastore.
+		dst.createSchema(dstFeatureType);
+
+		// Get src & dst feature iterators
+		SimpleFeatureIterator reader = featureSource.getFeatures().features();
+		FeatureWriter<SimpleFeatureType, SimpleFeature> writer = dst
+				.getFeatureWriter(typeName, t);
+
+		try {
+			int c = 0;
+			while (reader.hasNext()) {
+				c++;
+
+				// Get source and target features
+				SimpleFeature srcFeature = reader.next();
+				writer.hasNext();
+				SimpleFeature dstFeature = writer.next();
+
+				// Copy attributes and write
+				dstFeature.setAttributes(srcFeature.getAttributes());
+				writer.write();
+
+				// Commit every 1000 features and inform about the progress
+				if (c % 1000 == 0) {
+					t.commit();
+					System.out.print("\r  Processed " + String.valueOf(c)
+							+ " features");
 				}
 			}
-			dst.createSchema(dstFt);
-			SimpleFeatureStore featureStore = (SimpleFeatureStore) dst.getFeatureSource(typeName);
-			SimpleFeatureCollection collection = featureSource.getFeatures();
-			SimpleFeatureCollection memory = DataUtilities.collection(collection);
-			System.out.println("Fetched into memory!");
-			featureStore.setTransaction(t);
-			featureStore.addFeatures(memory);
-			// Terrible performance here
-			// will need to use low level FeatureWriter instead
-			// See: http://sourceforge.net/p/geotools/mailman/message/24229107/
-			// See also: http://osgeo-org.1560.x6.nabble.com/Re-Performance-writing-SHP-files-for-the-record-td4321719.html
+			// Done. Final commit.
 			t.commit();
-			System.out.println("Done!");
-		} catch (IOException | IllegalArgumentException e) {
-			t.rollback();
-			System.err.print("Error: " + e.getMessage());
+			System.out.print("\r  Processed " + String.valueOf(c)
+					+ " features.");
+			System.out.println("  Done.");
+		} catch (IOException e) {
+			e.printStackTrace();
+			try {
+				t.rollback();
+			} catch (IOException ee) {
+				// rollback failed?
+				ee.printStackTrace();
+			}
 		} finally {
 			t.close();
-			src.dispose();
-			dst.dispose();
+			writer.close();
+			reader.close();
 		}
+	}
+
+	/**
+	 * Counts the number of features in a feature source
+	 */
+	private int count(SimpleFeatureSource fs) throws IOException {
+		int count = fs.getCount(Query.ALL);
+		if (count == -1) {
+			count = fs.getFeatures().size();
+		}
+		return count;
 	}
 
 }
