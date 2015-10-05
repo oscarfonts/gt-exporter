@@ -5,7 +5,9 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
@@ -41,6 +43,7 @@ public class Exporter implements Closeable {
 
 	DataStore src, dst;
 	CoordinateReferenceSystem forcedCRS;
+	List<String> dontCopy;
 
 	/**
 	 * The CLI entry point.
@@ -128,6 +131,11 @@ public class Exporter implements Closeable {
 			throw new FactoryException(
 					"Error creating target datastore, please review its configuration parameters");
 		}
+
+		dontCopy = new ArrayList<String>();
+		if(srcConfig.containsKey("Geometry metadata table")) {
+			dontCopy.add(srcConfig.get("Geometry metadata table").toString());
+		}
 	}
 
 	/**
@@ -153,7 +161,12 @@ public class Exporter implements Closeable {
 		// Iterate over available types (DB tables or SHP files)
 		String[] typeNames = src.getTypeNames();
 		for (int i = 0; i < typeNames.length; i++) {
-			copyLayer(typeNames[i]);
+			String typeName = typeNames[i];
+			if (dontCopy.contains(typeName)) {
+				System.out.println("  Skipping " + typeName);
+			} else {
+				copyLayer(typeName);
+			}
 		}
 	}
 
@@ -268,10 +281,10 @@ public class Exporter implements Closeable {
 			try {
 				dstFeatureType = DataUtilities.createSubType(srcFeatureType,
 						null, forcedCRS);
-				System.out.println("Assigned CRS " + forcedCRS.getName().toString());
+				System.out.println("  Assigned CRS " + forcedCRS.getName().toString());
 			} catch (SchemaException e) {
 				System.err
-						.println("Warning: Couldn't assign the forced CRS to output");
+						.println("  Warning: Couldn't assign the forced CRS to output");
 				dstFeatureType = srcFeatureType;
 			}
 		}
