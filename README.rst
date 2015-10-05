@@ -159,17 +159,18 @@ See also: http://docs.geotools.org/stable/userguide/library/jdbc/h2.html
 Oracle Spatial
 --------------
 
-============== ==================================================================
-Parameter      Description
-============== ==================================================================
-"dbtype"       Must be the string "oracle"
-"host"         Machine name or IP address to connect to
-"port"         Port number to connect to (default 1521)
-"database"     The database (SID) to connect to
-"schema"       The database schema to access (increases access speed if provided)
-"user"         User name
-"passwd"       Password
-============== ==================================================================
+========================= ==================================================================
+Parameter                 Description
+========================= ==================================================================
+"dbtype"                  Must be the string "oracle"
+"host"                    Machine name or IP address to connect to
+"port"                    Port number to connect to (default 1521)
+"database"                The database (SID) to connect to
+"schema"                  The database schema to access (use it increases access speed!!)
+"user"                    User name
+"passwd"                  Password
+"Geometry metadata table" Optional, speeds up lookups (see geotools documentation)
+========================= ==================================================================
 
 Example ``oracle.properties``::
 
@@ -180,9 +181,11 @@ Example ``oracle.properties``::
 	schema=public
 	user=geotools
 	passwd=geotools
+	Geometry\ metadata\ table=GEOMETRY_COLUMNS
 
 .. note:: The propietary Oracle JDBC driver (``ojdbc7.jar``) has to be manually obtained from
-	`Oracle <http://www.oracle.com/technetwork/database/features/jdbc/default-2280470.html>`_ and
-	its location indicated in the "-cp" option.
+	`Oracle <http://www.oracle.com/technetwork/database/features/jdbc/default-2280470.html>`_.
+	You can add the jar location to the "-cp" option at run time, or include it as a maven
+	dependency at build time (see comments in ``pom.xml``).
 
 See also: http://docs.geotools.org/stable/userguide/library/jdbc/oracle.html
