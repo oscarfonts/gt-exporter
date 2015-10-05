@@ -28,18 +28,25 @@ Run from command line
 
 ::
 
-	java -jar gt-exporter-1.0.jar [--crs <crs_code>] <source> <target>
+	java -cp "\*:dependency/*" co.geomati.geotools.Exporter [--crs <crs_code>] <source> <target>
+
+Or via the helper ``run.sh`` script::
+
+	./run.sh [--crs <crs_code>] <source> <target>
 
 Where:
 
 * <source> is a shapefile, a directory of shapefiles, or a properties file defining a database connection to read the data from.
 * <target> is a shapefile, a directory of shapefiles, or a properties file defining a database connection copy the data to.
 * <crs_code> is an optional CRS that will be assigned to target datasets, ignoring any detected source CRS. Please note that no reprojection is performed.
-	
+
+.. note:: The -cp classpath option indicates two directories separated by ":". On windows, this separator character is a ";".
+
+
 Examples::
 
-	java -jar gt-exporter-1.0.jar --crs EPSG:23031 /a/directory/of/shapefiles/ spatialite.properties
-	java -jar gt-exporter-1.0.jar oracle.properties postgis.properties
+	java -cp "\*:dependency/*" co.geomati.geotools.Exporter --crs EPSG:23031 /a/directory/of/shapefiles/ spatialite.properties
+	java -cp "\*:dependency/*" co.geomati.geotools.Exporter oracle.properties postgis.properties
 
 .. warning:: The's no way to indicate which tables to be copied; the converter will copy over **all** the available geodata tables in a particular connection (or directory of shapefiles).
 
@@ -176,6 +183,6 @@ Example ``oracle.properties``::
 
 .. note:: The propietary Oracle JDBC driver (``ojdbc7.jar``) has to be manually obtained from
 	`Oracle <http://www.oracle.com/technetwork/database/features/jdbc/default-2280470.html>`_ and
-	made available somewhere in the ``CLASSPATH``.
+	its location indicated in the "-cp" option.
 
 See also: http://docs.geotools.org/stable/userguide/library/jdbc/oracle.html
