@@ -28,7 +28,7 @@ Run from command line
 
 ::
 
-	java -cp "\*:dependency/*" co.geomati.geotools.Exporter [--crs <crs_code>] <source> <target>
+	java -cp "*:dependency/*" co.geomati.geotools.Exporter [--crs <crs_code>] <source> <target>
 
 Or via the helper ``run.sh`` script::
 
@@ -45,8 +45,8 @@ Where:
 
 Examples::
 
-	java -cp "\*:dependency/*" co.geomati.geotools.Exporter --crs EPSG:23031 /a/directory/of/shapefiles/ spatialite.properties
-	java -cp "\*:dependency/*" co.geomati.geotools.Exporter oracle.properties postgis.properties
+	java -cp "*:dependency/*" co.geomati.geotools.Exporter --crs EPSG:23031 /a/directory/of/shapefiles/ spatialite.properties
+	java -cp "*:dependency/*" co.geomati.geotools.Exporter oracle.properties postgis.properties
 
 .. warning:: The's no way to indicate which tables to be copied; the converter will copy over **all** the available geodata tables in a particular connection (or directory of shapefiles).
 
