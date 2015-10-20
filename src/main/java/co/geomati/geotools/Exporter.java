@@ -6,6 +6,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -44,6 +45,7 @@ public class Exporter implements Closeable {
 	DataStore src, dst;
 	CoordinateReferenceSystem forcedCRS;
 	List<String> dontCopy;
+	boolean forceOverwrite = false;
 
 	/**
 	 * The CLI entry point.
@@ -69,6 +71,7 @@ public class Exporter implements Closeable {
 				accepts("help", "Print this help note").forHelp();
 				accepts("crs", "Force an output CRS (no reprojection)")
 						.withRequiredArg().describedAs("srs_def");
+				accepts("force", "If the destination layer exists, replace it. Use with caution, implies data loss!");
 				nonOptions("source and destination datasources").ofType(
 						File.class).describedAs("src dst");
 			}
@@ -89,19 +92,24 @@ public class Exporter implements Closeable {
 		String crsName = (String) options.valueOf("crs");
 
 		// Instantiate FormatConverter
-		Exporter converter = new Exporter(getConfig(srcFile),
+		Exporter exporter = new Exporter(getConfig(srcFile),
 				getConfig(dstFile));
 
 		// Optionally pass the CRS on
 		if (crsName != null) {
-			converter.forceCRS(crsName);
+			exporter.forceCRS(crsName);
+		}
+
+		// Force overwrite if set
+		if (options.has("force")) {
+			exporter.forceOverwrite(true);
 		}
 
 		// Ta-daaa!
-		converter.run();
+		exporter.run();
 
 		// Need to explicitly free resources
-		converter.close();
+		exporter.close();
 	}
 
 	/**
@@ -153,6 +161,15 @@ public class Exporter implements Closeable {
 	}
 
 	/**
+	 * Indicate if target data has to be overwritten in case layer already exists.
+	 *
+	 * @param flag Overwrite data if true, skip layer if false.
+	 */
+	public void forceOverwrite(boolean flag) {
+		forceOverwrite = flag;
+	}
+
+	/**
 	 * Copy the data from SRC dataStore to DST dataStore.
 	 * 
 	 * @throws IOException
@@ -168,6 +185,7 @@ public class Exporter implements Closeable {
 				copyLayer(typeName);
 			}
 		}
+		System.out.println("All done.");
 	}
 
 	/**
@@ -291,6 +309,18 @@ public class Exporter implements Closeable {
 
 		// Will throw exception if the FeatureType (table, filename) already
 		// exists in target datastore.
+		if (Arrays.asList(dst.getTypeNames()).contains(typeName)) {
+			System.out.println("  Warning: " + typeName + " already exists in target location.");
+			if (forceOverwrite == true) {
+				System.out.println("  Forced an overwrite - deleting previous target data.");
+				dst.removeSchema(typeName);
+				t.commit();
+			} else {
+				System.out.println("  Layer skipped.");
+				t.close();
+				return;
+			}
+		}
 		dst.createSchema(dstFeatureType);
 
 		// Get src & dst feature iterators
@@ -315,7 +345,7 @@ public class Exporter implements Closeable {
 				// Commit every 1000 features and inform about the progress
 				if (c % 1000 == 0) {
 					t.commit();
-					System.out.print("\r  Processed " + String.valueOf(c)
+					System.out.print("\r  Copied " + String.valueOf(c)
 							+ " features");
 				}
 			}
