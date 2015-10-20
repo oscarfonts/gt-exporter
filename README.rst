@@ -8,7 +8,7 @@ Transfers all geodata from a source database to a target database. Supported for
 * Spatialite
 * H2
 * Oracle Spatial (not tested, needs ojdbc7.jar from Oracle)
-* A shapefile or directory of shapefiles
+* A shapefile, or directory of shapefiles
 
 
 Get the code and compile
@@ -28,11 +28,11 @@ Run from command line
 
 ::
 
-	java -cp "*:dependency/*" co.geomati.geotools.Exporter [--crs <crs_code>] <source> <target>
+	java -cp "*:dependency/*" co.geomati.geotools.Exporter [--crs <crs_code>] [--force] <source> <target>
 
 Or via the helper ``run.sh`` script::
 
-	./run.sh [--crs <crs_code>] <source> <target>
+	./run.sh [--crs <crs_code>] [--force] <source> <target>
 
 Where:
 
@@ -40,15 +40,17 @@ Where:
 * <target> is a shapefile, a directory of shapefiles, or a properties file defining a database connection copy the data to.
 * <crs_code> is an optional CRS that will be assigned to target datasets, ignoring any detected source CRS. Please note that no reprojection is performed.
 
+If the destination table exists, the layer is skipped to keep destination data safe. If the "--force" option is set, the destination layer will be overwritten.
+
 .. note:: The -cp classpath option indicates two directories separated by ":". On windows, this separator character is a ";".
 
 
 Examples::
 
-	java -cp "*:dependency/*" co.geomati.geotools.Exporter --crs EPSG:23031 /a/directory/of/shapefiles/ spatialite.properties
-	java -cp "*:dependency/*" co.geomati.geotools.Exporter oracle.properties postgis.properties
+	./run.sh --crs EPSG:23031 /a/directory/of/shapefiles/ spatialite.properties
+	java -cp "*:dependency/*" co.geomati.geotools.Exporter --force oracle.properties postgis.properties
 
-.. warning:: The's no way to indicate which tables to be copied; the converter will copy over **all** the available geodata tables in a particular connection (or directory of shapefiles).
+.. warning:: The's no way to select which tables to be copied; the exporter will copy over **all** the available geodata tables in a particular database.
 
 
 Properties file connection parameters
