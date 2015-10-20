@@ -8,10 +8,12 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
+import joptsimple.OptionException;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 
@@ -44,7 +46,8 @@ public class Exporter implements Closeable {
 
 	DataStore src, dst;
 	CoordinateReferenceSystem forcedCRS;
-	List<String> dontCopy;
+	List<String> allLayers;
+	List<String> copyLayers;
 	boolean forceOverwrite = false;
 
 	/**
@@ -69,8 +72,11 @@ public class Exporter implements Closeable {
 		OptionParser parser = new OptionParser() {
 			{
 				accepts("help", "Print this help note").forHelp();
+				accepts("list", "List all the source layers");
 				accepts("crs", "Force an output CRS (no reprojection)")
 						.withRequiredArg().describedAs("srs_def");
+				accepts("layers", "Comma separated layer list to be exported")
+						.withRequiredArg().describedAs("layer_list");
 				accepts("force", "If the destination layer exists, replace it. Use with caution, implies data loss!");
 				nonOptions("source and destination datasources").ofType(
 						File.class).describedAs("src dst");
@@ -78,18 +84,28 @@ public class Exporter implements Closeable {
 		};
 
 		// Read the CLI arguments
-		OptionSet options = parser.parse(args);
+		OptionSet options = null;
+		try {
+			options = parser.parse(args);
+		} catch (OptionException e) {
+			System.err.println("Error pasrsing arguments: " + e.getMessage());
+			System.out.println("\nUsage\n=====\n");
+			parser.printHelpOn(System.out);
+			System.exit(2);
+		}
 
 		// 2 arguments needed: A source and a destination
 		if (options.nonOptionArguments().size() != 2) {
+			System.out.println("\nUsage\n=====\n");
 			parser.printHelpOn(System.out);
-			System.exit(0);
+			System.exit(1);
 		}
 
 		// Get the options
 		File srcFile = (File) options.nonOptionArguments().get(0);
 		File dstFile = (File) options.nonOptionArguments().get(1);
 		String crsName = (String) options.valueOf("crs");
+		String layers = (String) options.valueOf("layers");
 
 		// Instantiate FormatConverter
 		Exporter exporter = new Exporter(getConfig(srcFile),
@@ -105,8 +121,16 @@ public class Exporter implements Closeable {
 			exporter.forceOverwrite(true);
 		}
 
-		// Ta-daaa!
-		exporter.run();
+		if (layers != null) {
+			exporter.setLayers(new ArrayList<String>(Arrays.asList(layers.split(","))));
+		}
+
+		if (options.has("list")) {
+			System.out.println(exporter.getAllLayers().toString().replace(", ", ",").replaceAll("[\\[\\]]", ""));
+		} else {
+			// Ta-daaa!
+			exporter.run();
+		}
 
 		// Need to explicitly free resources
 		exporter.close();
@@ -140,9 +164,12 @@ public class Exporter implements Closeable {
 					"Error creating target datastore, please review its configuration parameters");
 		}
 
-		dontCopy = new ArrayList<String>();
+		allLayers = Arrays.asList(src.getTypeNames());
 		if(srcConfig.containsKey("Geometry metadata table")) {
-			dontCopy.add(srcConfig.get("Geometry metadata table").toString());
+			String meta = srcConfig.get("Geometry metadata table").toString();
+			if(allLayers.contains(meta)) {
+				allLayers.remove(meta);
+			}
 		}
 	}
 
@@ -170,22 +197,41 @@ public class Exporter implements Closeable {
 	}
 
 	/**
+	 * Set the layers to be exported. If not called, all the available layers will be exported.
+	 *
+	 * @param layers Layer name list. Case sensitive.
+	 */
+	public void setLayers(List<String> layers) {
+		copyLayers = layers;
+	}
+
+	public List<String> getAllLayers() {
+		return allLayers;
+	}
+
+	/**
 	 * Copy the data from SRC dataStore to DST dataStore.
 	 * 
 	 * @throws IOException
 	 */
 	public void run() throws IOException {
-		// Iterate over available types (DB tables or SHP files)
-		String[] typeNames = src.getTypeNames();
-		for (int i = 0; i < typeNames.length; i++) {
-			String typeName = typeNames[i];
-			if (dontCopy.contains(typeName)) {
-				System.out.println("  Skipping " + typeName);
-			} else {
-				copyLayer(typeName);
+		if (copyLayers == null) {
+			copyLayers = allLayers;
+		} else {
+			for (Iterator<String> iter = copyLayers.iterator(); iter.hasNext();) {
+				String candidate = iter.next();
+				if (!allLayers.contains(candidate)) {
+					iter.remove();
+					System.out.println("Warning: The indicated layer " + candidate + " does not exist; ignoring.");
+				}
 			}
 		}
-		System.out.println("All done.");
+
+		for (String layerName : copyLayers) {
+			copyLayer(layerName);
+		}
+
+		System.out.println("All layers processed.");
 	}
 
 	/**
@@ -351,9 +397,7 @@ public class Exporter implements Closeable {
 			}
 			// Done. Final commit.
 			t.commit();
-			System.out.print("\r  Processed " + String.valueOf(c)
-					+ " features.");
-			System.out.println("  Done.");
+			System.out.println("  Processed all " + String.valueOf(c) + " features. Layer export completed.");
 		} catch (IOException e) {
 			e.printStackTrace();
 			try {

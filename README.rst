@@ -28,29 +28,42 @@ Run from command line
 
 ::
 
-	java -cp "*:dependency/*" co.geomati.geotools.Exporter [--crs <crs_code>] [--force] <source> <target>
+	java -cp "*:dependency/*" co.geomati.geotools.Exporter [--list] [--layers <layer_list>] [--force] [--crs <crs_code>] <source> <target>
 
 Or via the helper ``run.sh`` script::
 
-	./run.sh [--crs <crs_code>] [--force] <source> <target>
-
-Where:
-
-* <source> is a shapefile, a directory of shapefiles, or a properties file defining a database connection to read the data from.
-* <target> is a shapefile, a directory of shapefiles, or a properties file defining a database connection copy the data to.
-* <crs_code> is an optional CRS that will be assigned to target datasets, ignoring any detected source CRS. Please note that no reprojection is performed.
-
-If the destination table exists, the layer is skipped to keep destination data safe. If the "--force" option is set, the destination layer will be overwritten.
+	./run.sh [--list] [--layers <layer_list>] [--force] [--crs <crs_code>] <source> <target>
 
 .. note:: The -cp classpath option indicates two directories separated by ":". On windows, this separator character is a ";".
 
+Where:
 
-Examples::
+* --list lists all the available layers. No actual processing is done when this option is set.
+* --layers <layer_list> indicate a comma separated list with the layers to be exported. If not indicated, all the available layers are processed.
+* --force if the target layer exist, overwrite it. Use with caution. By default, if destination layer exists no export is done.
+* --crs <crs_code> is an optional CRS that will be assigned to target datasets, ignoring any detected source CRS. Please note that no reprojection is performed.
+* <source> is a shapefile, a directory of shapefiles, or a properties file defining a database connection to read the data from.
+* <target> is a shapefile, a directory of shapefiles, or a properties file defining a database connection copy the data to.
 
-	./run.sh --crs EPSG:23031 /a/directory/of/shapefiles/ spatialite.properties
-	java -cp "*:dependency/*" co.geomati.geotools.Exporter --force oracle.properties postgis.properties
 
-.. warning:: The's no way to select which tables to be copied; the exporter will copy over **all** the available geodata tables in a particular database.
+Examples:
+
+List the available layers in an Oracle database::
+
+	./run.sh --list oracle.properties ./
+
+Export a couple of layers to a Spatialite file::
+
+	./run.sh --layers RIVERS,PROVINCES postgis.properties spatialite.properties
+
+Massive export from Oracle to PostGIS, overwritting any target data::
+
+	./run.sh --force oracle.properties postgis.properties
+
+Convert a directory of Shapefiles to an H2 database, explicitly stating their CRS::
+
+	./run.sh --crs EPSG:23031 /a/directory/of/shapefiles/ h2.properties
+
 
 
 Properties file connection parameters
