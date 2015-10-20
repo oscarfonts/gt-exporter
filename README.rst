@@ -7,7 +7,7 @@ Transfers all geodata from a source database to a target database. Supported for
 * PostGIS
 * Spatialite
 * H2
-* Oracle Spatial (not tested, needs ojdbc7.jar from Oracle)
+* Oracle Spatial (needs ojdbc7.jar driver from Oracle)
 * A shapefile, or directory of shapefiles
 
 
@@ -161,18 +161,18 @@ See also: http://docs.geotools.org/stable/userguide/library/jdbc/h2.html
 Oracle Spatial
 --------------
 
-========================= ==================================================================
+========================= ========================================================================
 Parameter                 Description
-========================= ==================================================================
+========================= ========================================================================
 "dbtype"                  Must be the string "oracle"
 "host"                    Machine name or IP address to connect to
 "port"                    Port number to connect to (default 1521)
 "database"                The database (SID) to connect to
-"schema"                  The database schema to access (use it increases access speed!!)
+"schema"                  The database schema to access (use it, greatly reduces access time!)
 "user"                    User name
 "passwd"                  Password
-"Geometry metadata table" Optional, speeds up lookups (see geotools documentation)
-========================= ==================================================================
+"Geometry metadata table" Optional but recommended, speeds up lookups (see geotools documentation)
+========================= ========================================================================
 
 Example ``oracle.properties``::
 
