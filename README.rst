@@ -6,6 +6,7 @@ Transfers all geodata from a source database to a target database. Supported for
 
 * PostGIS
 * Spatialite
+* Geopackage
 * H2
 * Oracle Spatial (needs ojdbc7.jar driver from Oracle)
 * A shapefile, or directory of shapefiles
@@ -121,6 +122,24 @@ Example ``spatialite.properties``::
    versions.
 
 See also: http://docs.geotools.org/stable/userguide/library/jdbc/spatialite.html
+
+
+Geopackage
+----------
+
+============== ============================================
+Parameter      Description
+============== ============================================
+"dbtype"       Must be the string "geopkg"
+"database"     The database to connect to
+============== ============================================
+
+Example ``geopkg.properties``::
+
+	dbtype=geopkg
+	database=DATABASE.gpkg
+
+This is an unsupported geotools module, there's no further documentation.
 
 
 H2
