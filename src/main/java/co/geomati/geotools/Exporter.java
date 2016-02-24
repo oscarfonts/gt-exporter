@@ -164,7 +164,7 @@ public class Exporter implements Closeable {
 					"Error creating target datastore, please review its configuration parameters");
 		}
 
-		allLayers = Arrays.asList(src.getTypeNames());
+		allLayers = new java.util.ArrayList<String>(Arrays.asList(src.getTypeNames()));
 		if(srcConfig.containsKey("Geometry metadata table")) {
 			String meta = srcConfig.get("Geometry metadata table").toString();
 			if(allLayers.contains(meta)) {
