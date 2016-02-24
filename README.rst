@@ -115,7 +115,7 @@ Example ``spatialite.properties``::
 
 .. note:: Depends on PROJ and GEOS libraries. In Linux systems, if you previously
     installed PostGIS, GDAL or SpatiaLite packages, they are probably there. But please
-    refer to the GeoTools link above if you need precompiled binaries for your system.
+    refer to the GeoTools link below if you need precompiled binaries for your system.
 
 .. note:: This plugin uses internal versions of both SQLite (3.7.2) and SpatiaLite (2.4.0).
    Therefore the plugin is only capable of accessing databases that are compatible with these 
